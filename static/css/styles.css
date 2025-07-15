@@ -74,6 +74,10 @@ body {
     font-size: 16px;
 }
 
+.mp3-convert-section {
+    margin-bottom: 30px;
+}
+
 .app-title {
     font-size: 16px;
     font-weight: 400;

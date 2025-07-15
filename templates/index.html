@@ -14,8 +14,8 @@
         <main>
             <div class="menu-container">
                 <nav class="app-menu">
-                    <button class="menu-btn active" data-app="youtube-video">YouTube Video</button>
-                    <button class="menu-btn" data-app="youtube-mp3">YouTube MP3</button>
+                    <button class="menu-btn active" data-app="youtube-video">YouTube Video Downloader</button>
+                    <button class="menu-btn" data-app="youtube-mp3">YouTube Video to MP3 Downloader</button>
                     <button class="menu-btn" data-app="json-formatter">JSON Formatter</button>
                 </nav>
             </div>
@@ -55,16 +55,39 @@
             
             <div class="app youtube-mp3-app hidden">
                 <h1 class="app-title">YouTube to MP3 Converter</h1>
-                <div class="placeholder-content">
-                    <p>YouTube MP3 converter coming soon...</p>
+                
+                <div class="input-section">
+                    <input type="text" 
+                           id="mp3UrlInput" 
+                           placeholder="Enter YouTube URL..." 
+                           class="url-input">
+                </div>
+
+                <div class="mp3-convert-section">
+                    <button id="convertMp3Btn" class="download-btn">CONVERT TO MP3</button>
+                </div>
+
+                <div id="mp3ProgressContainer" class="progress-container hidden">
+                    <div class="progress-info">
+                        <span class="progress-text">Converting...</span>
+                        <span class="progress-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="progress-details">
+                        <span class="download-speed">0 MB/s</span>
+                        <span class="download-eta">ETA: --:--</span>
+                    </div>
+                    <div class="progress-controls">
+                        <button id="mp3PauseResumeBtn" class="control-btn pause-btn">PAUSE</button>
+                        <button id="mp3CancelBtn" class="control-btn cancel-btn">CANCEL</button>
+                    </div>
                 </div>
             </div>
             
             <div class="app json-formatter-app hidden">
-                <h1 class="app-title">JSON Formatter</h1>
-                <div class="placeholder-content">
-                    <p>JSON formatter coming soon...</p>
-                </div>
+                <h1 class="app-title">Json Formatter</h1>
             </div>
         </main>
     </div>

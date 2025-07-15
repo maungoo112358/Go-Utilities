@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmDownloadBtn = document.getElementById('confirmDownloadBtn');
     const progressContainer = document.getElementById('progressContainer');
     
+    // MP3 elements
+    const mp3UrlInput = document.getElementById('mp3UrlInput');
+    const convertMp3Btn = document.getElementById('convertMp3Btn');
+    const mp3ProgressContainer = document.getElementById('mp3ProgressContainer');
+    
     // Initialize WebSocket
     initWebSocket();
     
@@ -55,6 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
             handleCancelDownload();
         } else if (e.target.id === 'pauseResumeBtn') {
             handlePauseResumeDownload();
+        } else if (e.target.id === 'convertMp3Btn') {
+            handleMp3Convert();
+        } else if (e.target.id === 'mp3CancelBtn') {
+            handleCancelDownload(); // Reuse the same cancel logic
+        } else if (e.target.id === 'mp3PauseResumeBtn') {
+            handlePauseResumeDownload(); // Reuse the same pause/resume logic
         }
     });
     
@@ -87,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update page title
                 const titles = {
                     'youtube-video': 'YouTube Video Downloader',
-                    'youtube-mp3': 'YouTube to MP3 Converter', 
+                    'youtube-mp3': 'YouTube Video to MP3 Downloader', 
                     'json-formatter': 'JSON Formatter'
                 };
                 document.title = titles[targetApp] || 'Go Utilities';
@@ -388,6 +399,80 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to pause/resume download:', error);
             showError('Failed to pause/resume download');
         }
+    }
+    
+    async function handleMp3Convert() {
+        const mp3UrlInput = document.getElementById('mp3UrlInput');
+        const convertMp3Btn = document.getElementById('convertMp3Btn');
+        const mp3ProgressContainer = document.getElementById('mp3ProgressContainer');
+        
+        if (!mp3UrlInput || !mp3UrlInput.value.trim()) {
+            showError('Please enter a YouTube URL');
+            return;
+        }
+        
+        if (!isValidYouTubeURL(mp3UrlInput.value.trim())) {
+            showError('Please enter a valid YouTube URL');
+            return;
+        }
+        
+        // Show loading state
+        convertMp3Btn.innerHTML = '<span class="loading-spinner"></span>STARTING...';
+        convertMp3Btn.disabled = true;
+        
+        try {
+            const response = await fetch(`${API_BASE}/mp3-convert`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    url: mp3UrlInput.value.trim()
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                currentDownloadId = data.filename;
+                showMp3Progress();
+                // Disable URL input during conversion
+                mp3UrlInput.disabled = true;
+                mp3UrlInput.style.opacity = '0.5';
+            } else {
+                showError(data.message || 'MP3 conversion failed');
+            }
+        } catch (error) {
+            showError('Connection error. Please try again.');
+        } finally {
+            // Reset button
+            convertMp3Btn.innerHTML = 'CONVERT TO MP3';
+            convertMp3Btn.disabled = false;
+        }
+    }
+    
+    function showMp3Progress() {
+        const mp3ProgressContainer = document.getElementById('mp3ProgressContainer');
+        if (mp3ProgressContainer) {
+            mp3ProgressContainer.classList.remove('hidden');
+        }
+    }
+    
+    function hideMp3Progress() {
+        const mp3ProgressContainer = document.getElementById('mp3ProgressContainer');
+        const mp3UrlInput = document.getElementById('mp3UrlInput');
+        
+        if (mp3ProgressContainer) {
+            mp3ProgressContainer.classList.add('hidden');
+        }
+        
+        // Re-enable URL input
+        if (mp3UrlInput) {
+            mp3UrlInput.disabled = false;
+            mp3UrlInput.style.opacity = '1';
+        }
+        
+        currentDownloadId = null;
     }
     
     function showError(message) {
