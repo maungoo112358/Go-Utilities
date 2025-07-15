@@ -21,6 +21,13 @@ body {
     padding: 20px;
 }
 
+/* JSON Formatter gets wider layout */
+.json-formatter-app .json-formatter-container {
+    width: 260%;
+    max-width: 1500px;
+    margin-left: -80%;
+}
+
 .menu-container {
     margin-bottom: 30px;
 }
@@ -76,6 +83,220 @@ body {
 
 .mp3-convert-section {
     margin-bottom: 30px;
+}
+
+/* JSON Formatter Styles */
+.json-formatter-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    height: auto;
+}
+
+.json-panel {
+    display: flex;
+    flex-direction: column;
+    background-color: #1A1A1A;
+    border: 1px solid #333333;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.json-left-panel {
+    border-right: 2px solid #333333;
+}
+
+.json-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.json-panel-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #BBBBBB;
+    letter-spacing: 0.5px;
+}
+
+.json-button-group {
+    display: flex;
+    gap: 8px;
+}
+
+.json-copy-btn, .json-download-btn {
+    padding: 6px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+}
+
+.json-copy-btn {
+    background-color: #5A4FCF;
+    color: #FFFFFF;
+}
+
+.json-copy-btn:hover {
+    background-color: #4A3FB5;
+    transform: translateY(-1px);
+}
+
+.json-download-btn {
+    background-color: #2D7D2D;
+    color: #FFFFFF;
+}
+
+.json-download-btn:hover {
+    background-color: #236B23;
+    transform: translateY(-1px);
+}
+
+.json-copy-btn.copied, .json-download-btn.downloaded {
+    background-color: #FF9500;
+}
+
+.json-textarea {
+    width: 100%;
+    height: 700px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background-color: #121212;
+    border: 2px solid #333333;
+    border-radius: 6px;
+    color: #FFFFFF;
+    outline: none;
+    resize: none;
+    transition: all 0.3s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.json-textarea:focus {
+    border-color: #5A4FCF;
+    box-shadow: 0 0 0 2px rgba(90, 79, 207, 0.1);
+}
+
+.json-textarea::placeholder {
+    color: #666666;
+}
+
+.json-output {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    background-color: #1A1A1A;
+    border-color: #444444;
+    text-align: left;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.json-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #888888;
+}
+
+.json-error {
+    margin-top: 12px;
+    padding: 12px;
+    background-color: #2D1B1B;
+    border: 1px solid #D32F2F;
+    border-radius: 4px;
+    color: #FF6B6B;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* JSON Syntax Highlighting */
+.json-key { 
+    color: #81C784; 
+    font-weight: 600;
+}
+
+.json-string { 
+    color: #FFB74D; 
+    font-weight: 400;
+}
+
+.json-number { 
+    color: #64B5F6; 
+    font-weight: 500;
+}
+
+.json-boolean { 
+    color: #F06292; 
+    font-weight: 600;
+}
+
+.json-null { 
+    color: #9E9E9E; 
+    font-weight: 500;
+    font-style: italic;
+}
+
+.json-bracket { 
+    color: #FFFFFF; 
+    font-weight: 700;
+}
+
+.json-comma {
+    color: #BBBBBB;
+}
+
+/* Custom scrollbar styling for JSON panels */
+.json-textarea::-webkit-scrollbar,
+.json-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+.json-textarea::-webkit-scrollbar-track,
+.json-output::-webkit-scrollbar-track {
+    background: #1A1A1A;
+    border-radius: 4px;
+}
+
+.json-textarea::-webkit-scrollbar-thumb,
+.json-output::-webkit-scrollbar-thumb {
+    background: #5A4FCF;
+    border-radius: 4px;
+}
+
+.json-textarea::-webkit-scrollbar-thumb:hover,
+.json-output::-webkit-scrollbar-thumb:hover {
+    background: #4A3FB5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .json-formatter-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        height: auto;
+    }
+    
+    .json-left-panel {
+        border-right: none;
+        border-bottom: 2px solid #333333;
+    }
+    
+    .json-textarea {
+        min-height: 200px;
+    }
+    
+    .json-panel {
+        padding: 16px;
+    }
 }
 
 .app-title {

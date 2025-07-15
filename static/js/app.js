@@ -22,6 +22,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize menu system
     initMenuSystem();
     
+    // Debug: Check if MP3 button exists and add direct listener
+    setTimeout(() => {
+        const mp3Btn = document.getElementById('convertMp3Btn');
+        console.log('MP3 button check:', {
+            exists: !!mp3Btn,
+            visible: mp3Btn ? !mp3Btn.closest('.hidden') : false,
+            element: mp3Btn
+        });
+        
+        // Add direct event listener as backup
+        if (mp3Btn) {
+            mp3Btn.addEventListener('click', function(e) {
+                console.log('Direct MP3 button clicked!');
+                e.preventDefault();
+                e.stopPropagation();
+                handleMp3Convert();
+            });
+            console.log('Direct event listener added to MP3 button');
+        }
+    }, 1000);
+    
     // URL input change handler with debounce
     let debounceTimer;
     urlInput.addEventListener('input', (e) => {
@@ -56,19 +77,33 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Control button handlers (using event delegation since buttons are created dynamically)
     document.addEventListener('click', (e) => {
-        console.log('Click detected on element:', e.target.id, e.target.tagName, e.target.className);
+        console.log('Click detected:', {
+            id: e.target.id,
+            tag: e.target.tagName,
+            className: e.target.className,
+            textContent: e.target.textContent,
+            closest: e.target.closest('.app')?.className
+        });
         
         if (e.target.id === 'cancelBtn') {
+            console.log('Cancel button clicked');
             handleCancelDownload();
         } else if (e.target.id === 'pauseResumeBtn') {
+            console.log('Pause/Resume button clicked');
             handlePauseResumeDownload();
         } else if (e.target.id === 'convertMp3Btn') {
-            console.log('MP3 Convert button clicked!');
+            console.log('MP3 Convert button clicked via event delegation!');
+            e.preventDefault();
+            e.stopPropagation();
             handleMp3Convert();
         } else if (e.target.id === 'mp3CancelBtn') {
+            console.log('MP3 Cancel button clicked');
             handleCancelDownload(); // Reuse the same cancel logic
         } else if (e.target.id === 'mp3PauseResumeBtn') {
+            console.log('MP3 Pause/Resume button clicked');
             handlePauseResumeDownload(); // Reuse the same pause/resume logic
+        } else {
+            console.log('Unhandled click on:', e.target.id || 'no-id');
         }
     });
     
@@ -568,3 +603,256 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
     }
 });
+
+// JSON Formatter Functions
+let jsonDebounceTimer;
+
+function beautifyJSON() {
+    clearTimeout(jsonDebounceTimer);
+    jsonDebounceTimer = setTimeout(() => {
+        const input = document.getElementById('jsonInput').value.trim();
+        const output = document.getElementById('jsonOutput');
+        const errorDiv = document.getElementById('jsonError');
+        const inputStats = document.getElementById('inputStats');
+        const outputStats = document.getElementById('outputStats');
+        const inputChars = document.getElementById('inputChars');
+        const outputChars = document.getElementById('outputChars');
+        
+        // Update input character count
+        if (inputChars) inputChars.textContent = input.length + ' characters';
+        
+        if (!input.trim()) {
+            if (output) output.textContent = 'Formatted JSON will appear here...';
+            if (errorDiv) errorDiv.classList.add('hidden');
+            if (inputStats) inputStats.textContent = 'Ready to format';
+            if (outputStats) outputStats.textContent = 'Waiting for input';
+            if (outputChars) outputChars.textContent = '0 characters';
+            return;
+        }
+        
+        try {
+            // Parse and beautify JSON
+            const parsed = JSON.parse(input);
+            const beautified = JSON.stringify(parsed, null, 2);
+            
+            // Apply syntax highlighting
+            const highlighted = highlightJSON(beautified);
+            if (output) output.innerHTML = highlighted;
+            if (errorDiv) errorDiv.classList.add('hidden');
+            
+            // Update stats
+            if (inputStats) inputStats.textContent = '✅ Valid JSON';
+            if (outputStats) outputStats.textContent = '✨ Formatted successfully';
+            if (outputChars) outputChars.textContent = beautified.length + ' characters';
+            
+        } catch (error) {
+            if (output) output.textContent = 'Invalid JSON - please check your syntax';
+            if (errorDiv) {
+                errorDiv.textContent = '❌ Invalid JSON: ' + error.message;
+                errorDiv.classList.remove('hidden');
+            }
+            
+            if (inputStats) inputStats.textContent = '❌ Invalid JSON';
+            if (outputStats) outputStats.textContent = 'Fix input to see output';
+            if (outputChars) outputChars.textContent = '0 characters';
+        }
+    }, 300);
+}
+
+function highlightJSON(json) {
+    // Escape HTML first
+    let result = json.replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+    
+    // Split into lines for line-by-line processing
+    let lines = result.split('\n');
+    let highlightedLines = [];
+    
+    for (let line of lines) {
+        let highlightedLine = highlightJSONLine(line);
+        highlightedLines.push(highlightedLine);
+    }
+    
+    return highlightedLines.join('\n');
+}
+
+function highlightJSONLine(line) {
+    // Handle empty lines
+    if (line.trim() === '') return line;
+    
+    // Preserve leading whitespace
+    let leadingSpaces = line.match(/^(\s*)/)[0];
+    let content = line.trim();
+    
+    // Handle structural characters only
+    if (content === '{' || content === '}' || content === '[' || content === ']' || 
+        content === '{,' || content === '},' || content === '[,' || content === '],') {
+        return leadingSpaces + '<span class="json-bracket">' + content + '</span>';
+    }
+    
+    // Handle key-value pairs
+    let colonIndex = content.indexOf(':');
+    if (colonIndex > 0) {
+        let keyPart = content.substring(0, colonIndex).trim();
+        let valuePart = content.substring(colonIndex + 1).trim();
+        
+        // Highlight key (should be quoted)
+        let highlightedKey = keyPart.replace(/^"([^"]*)"$/, '<span class="json-key">"$1"</span>');
+        
+        // Highlight value
+        let highlightedValue = highlightValue(valuePart);
+        
+        return leadingSpaces + highlightedKey + '<span class="json-bracket">:</span> ' + highlightedValue;
+    }
+    
+    // Handle standalone values (in arrays)
+    return leadingSpaces + highlightValue(content);
+}
+
+function highlightValue(value) {
+    // Remove trailing comma if present
+    let hasComma = value.endsWith(',');
+    if (hasComma) {
+        value = value.slice(0, -1).trim();
+    }
+    
+    let result = '';
+    
+    // Check value type and apply appropriate highlighting
+    if (value === 'true' || value === 'false') {
+        result = '<span class="json-boolean">' + value + '</span>';
+    } else if (value === 'null') {
+        result = '<span class="json-null">' + value + '</span>';
+    } else if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value)) {
+        result = '<span class="json-number">' + value + '</span>';
+    } else if (value.startsWith('"') && value.endsWith('"')) {
+        result = '<span class="json-string">' + value + '</span>';
+    } else if (value === '[' || value === ']' || value === '{' || value === '}') {
+        result = '<span class="json-bracket">' + value + '</span>';
+    } else {
+        result = value;
+    }
+    
+    if (hasComma) {
+        result += '<span class="json-comma">,</span>';
+    }
+    
+    return result;
+}
+
+function copyJsonInput() {
+    const element = document.getElementById('jsonInput');
+    const text = element.value;
+    
+    if (!text.trim()) {
+        showError('No input to copy');
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showJsonNotification('Input copied!');
+    }).catch(() => {
+        // Fallback for older browsers
+        element.select();
+        document.execCommand('copy');
+        showJsonNotification('Input copied!');
+    });
+}
+
+function copyJsonOutput() {
+    const element = document.getElementById('jsonOutput');
+    const text = element.textContent || element.innerText;
+    
+    if (!text.trim() || text.trim() === 'Formatted JSON will appear here...') {
+        showError('No output to copy');
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showJsonNotification('Output copied!');
+    }).catch(() => {
+        // Fallback for older browsers
+        const tempTextarea = document.createElement('textarea');
+        tempTextarea.value = text;
+        document.body.appendChild(tempTextarea);
+        tempTextarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextarea);
+        showJsonNotification('Output copied!');
+    });
+}
+
+function downloadJSON() {
+    const outputElement = document.getElementById('jsonOutput');
+    const jsonContent = outputElement.textContent || outputElement.innerText;
+    
+    if (!jsonContent.trim() || jsonContent.trim() === 'Formatted JSON will appear here...') {
+        showError('No JSON content to download');
+        return;
+    }
+    
+    // Create blob with JSON content
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Generate filename with timestamp
+    const now = new Date();
+    const timestamp = now.getFullYear() + '-' + 
+                    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(now.getDate()).padStart(2, '0') + '_' + 
+                    String(now.getHours()).padStart(2, '0') + '-' + 
+                    String(now.getMinutes()).padStart(2, '0') + '-' + 
+                    String(now.getSeconds()).padStart(2, '0');
+    
+    a.download = 'formatted_' + timestamp + '.json';
+    
+    // Trigger download
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    // Clean up
+    window.URL.revokeObjectURL(url);
+    
+    showJsonNotification('JSON downloaded!');
+}
+
+function showJsonNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: #2D7D2D;
+        color: #FFFFFF;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        z-index: 1000;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remove after delay
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+}

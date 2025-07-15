@@ -87,7 +87,45 @@
             </div>
             
             <div class="app json-formatter-app hidden">
-                <h1 class="app-title">Json Formatter</h1>
+                <h1 class="app-title">JSON Formatter</h1>
+                
+                <div class="json-formatter-container">
+                    <div class="json-panel json-left-panel">
+                        <div class="json-panel-header">
+                            <h3 class="json-panel-title">Input JSON</h3>
+                            <button class="json-copy-btn" onclick="copyJsonInput()">COPY INPUT</button>
+                        </div>
+                        <textarea 
+                            id="jsonInput" 
+                            class="json-textarea" 
+                            placeholder="Paste your JSON here..."
+                            oninput="beautifyJSON()"
+                        ></textarea>
+                        <div class="json-stats">
+                            <span id="inputStats">Ready to format</span>
+                            <span id="inputChars">0 characters</span>
+                        </div>
+                        <div id="jsonError" class="json-error hidden"></div>
+                    </div>
+                    
+                    <div class="json-panel json-right-panel">
+                        <div class="json-panel-header">
+                            <h3 class="json-panel-title">Formatted JSON</h3>
+                            <div class="json-button-group">
+                                <button class="json-copy-btn" onclick="copyJsonOutput()">COPY OUTPUT</button>
+                                <button class="json-download-btn" onclick="downloadJSON()">DOWNLOAD</button>
+                            </div>
+                        </div>
+                        <div 
+                            id="jsonOutput" 
+                            class="json-textarea json-output"
+                        >Formatted JSON will appear here...</div>
+                        <div class="json-stats">
+                            <span id="outputStats">Waiting for input</span>
+                            <span id="outputChars">0 characters</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
