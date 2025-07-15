@@ -247,6 +247,14 @@ func (m *Manager) StartDownload(url, quality string) string {
 	return downloadID
 }
 
+func (m *Manager) StartMp3Convert(url string) string {
+	downloadID := fmt.Sprintf("mp3_%d", time.Now().Unix())
+	
+	go m.convertToMp3(downloadID, url)
+	
+	return downloadID
+}
+
 func (m *Manager) download(id, url, quality string) {
 	m.mu.Lock()
 	m.downloads[id] = &Download{
@@ -508,6 +516,244 @@ func (m *Manager) download(id, url, quality string) {
 	}
 	
 	m.updateStatus(id, "completed", 100, "", "", fmt.Sprintf("Saved as: %s", filepath.Base(finalPath)))
+}
+
+func (m *Manager) convertToMp3(id, url string) {
+	m.mu.Lock()
+	m.downloads[id] = &Download{
+		ID:     id,
+		URL:    url,
+		Status: "starting",
+	}
+	m.mu.Unlock()
+
+	// Clean the YouTube URL first (adapted from existing project)
+	cleanURL, err := m.cleanYouTubeURL(url)
+	if err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Invalid YouTube URL: %v", err))
+		return
+	}
+
+	// Create temp directory for MP3 conversion
+	tempDir := filepath.Join(os.TempDir(), "ytmp3converter")
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create temp directory: %v", err))
+		return
+	}
+
+	outputPath := filepath.Join(tempDir, "%(title)s.%(ext)s")
+	
+	// Get FFmpeg path
+	ffmpegPath, err := m.getFFmpegPath()
+	if err != nil {
+		log.Printf("Warning: FFmpeg not found, MP3 conversion may not work: %v", err)
+	}
+
+	// Prepare yt-dlp command for MP3 extraction
+	args := []string{
+		"--no-warnings",
+		"--newline",
+		"--progress",
+		"-x", // Extract audio
+		"--audio-format", "mp3",
+		"--audio-quality", "0", // Best quality
+		"-o", outputPath,
+		"--embed-metadata",
+		"--no-playlist",
+		"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+		"--referer", "https://www.youtube.com/",
+		"--add-header", "Accept-Language:en-US,en;q=0.9",
+		"--add-header", "Accept-Encoding:gzip, deflate, br, zstd",
+		"--add-header", "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+		"--add-header", "Cache-Control:no-cache",
+		"--add-header", "Pragma:no-cache",
+		"--add-header", "Sec-Ch-Ua:\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+		"--add-header", "Sec-Ch-Ua-Mobile:?0",
+		"--add-header", "Sec-Ch-Ua-Platform:\"Windows\"",
+		"--add-header", "Sec-Fetch-Dest:document",
+		"--add-header", "Sec-Fetch-Mode:navigate",
+		"--add-header", "Sec-Fetch-Site:none",
+		"--add-header", "Sec-Fetch-User:?1",
+		"--add-header", "Upgrade-Insecure-Requests:1",
+		"--extractor-retries", "15",
+		"--fragment-retries", "20",
+		"--retry-sleep", "exp=1:300",
+		"--socket-timeout", "120",
+		"--http-chunk-size", "1048576",
+		"--sleep-interval", "2",
+		"--max-sleep-interval", "10",
+		"--geo-bypass",
+		"--geo-bypass-country", "US",
+		"--no-check-certificate",
+		"--force-ipv4",
+		"--verbose",
+		"--prefer-free-formats",
+		"--youtube-skip-dash-manifest",
+		"--hls-prefer-native",
+	}
+
+	// Add FFmpeg location if available
+	if ffmpegPath != "" {
+		args = append(args, "--ffmpeg-location", ffmpegPath)
+	}
+
+	args = append(args, cleanURL)
+
+	// Get absolute path to yt-dlp
+	ytDlpPath, err := getYtDlpPath()
+	if err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("yt-dlp not found: %v", err))
+		return
+	}
+
+	cmd := exec.Command(ytDlpPath, args...)
+	log.Printf("=== CONVERTING TO MP3 ===")
+	log.Printf("Path: %s", ytDlpPath)
+	log.Printf("URL: %s -> %s", url, cleanURL)
+	log.Printf("Temp dir: %s", tempDir)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create stdout pipe: %v", err))
+		return
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create stderr pipe: %v", err))
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to start yt-dlp for MP3: %v", err)
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to start MP3 conversion: %v", err))
+		return
+	}
+
+	// Progress parsing (same as video download)
+	progressRegex1 := regexp.MustCompile(`\[download\]\s+(\d+\.?\d*)%\s+of\s+.*?\s+at\s+(\S+)\s+ETA\s+(\S+)`)
+	progressRegex2 := regexp.MustCompile(`\[download\]\s+(\d+\.?\d*)%`)
+	titleRegex := regexp.MustCompile(`\[download\] Destination: (.+)`)
+
+	scanner := bufio.NewScanner(stdout)
+	var title, filename string
+
+	// Log stderr in background
+	go func() {
+		stderrScanner := bufio.NewScanner(stderr)
+		for stderrScanner.Scan() {
+			line := stderrScanner.Text()
+			log.Printf("yt-dlp MP3 stderr: %s", line)
+		}
+	}()
+
+	// Set initial status
+	m.updateStatus(id, "converting", 0, "", "", "Starting MP3 conversion...")
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		log.Printf("yt-dlp MP3 stdout: %s", line)
+
+		// Extract title
+		if matches := titleRegex.FindStringSubmatch(line); len(matches) > 1 {
+			filename = filepath.Base(matches[1])
+			title = strings.TrimSuffix(filename, filepath.Ext(filename))
+			m.mu.Lock()
+			if d, ok := m.downloads[id]; ok {
+				d.Title = title
+			}
+			m.mu.Unlock()
+		}
+
+		// Extract progress
+		if matches := progressRegex1.FindStringSubmatch(line); len(matches) > 3 {
+			progress := parseFloat(matches[1])
+			speed := matches[2]
+			eta := matches[3]
+
+			log.Printf("MP3 Progress: %f%%, Speed: %s, ETA: %s", progress, speed, eta)
+			m.updateStatus(id, "converting", progress, speed, eta, "")
+		} else if matches := progressRegex2.FindStringSubmatch(line); len(matches) > 1 {
+			progress := parseFloat(matches[1])
+			log.Printf("MP3 Simple progress: %f%%", progress)
+			m.updateStatus(id, "converting", progress, "", "", "")
+		}
+
+		// Check for completion
+		if strings.Contains(line, "[download] 100%") || strings.Contains(line, "has already been downloaded") {
+			log.Printf("MP3 conversion completed, processing...")
+			m.updateStatus(id, "processing", 100, "", "", "Processing MP3...")
+		}
+
+		// Check for FFmpeg processing
+		if strings.Contains(line, "[ffmpeg]") {
+			m.updateStatus(id, "processing", 100, "", "", "Converting to MP3...")
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		log.Printf("yt-dlp MP3 command failed: %v", err)
+		if exitError, ok := err.(*exec.ExitError); ok {
+			log.Printf("yt-dlp MP3 exit code: %d", exitError.ExitCode())
+			stderrOutput := string(exitError.Stderr)
+			log.Printf("yt-dlp MP3 stderr: %s", stderrOutput)
+
+			// Send specific error messages
+			if strings.Contains(stderrOutput, "Video unavailable") {
+				m.updateStatus(id, "error", 0, "", "", "Video is unavailable or private")
+			} else if strings.Contains(stderrOutput, "403") || strings.Contains(stderrOutput, "Forbidden") {
+				m.updateStatus(id, "error", 0, "", "", "YouTube blocked the request. Try a different video or wait a moment.")
+			} else if strings.Contains(stderrOutput, "Sign in") {
+				m.updateStatus(id, "error", 0, "", "", "Video requires sign-in or is age-restricted")
+			} else {
+				m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("MP3 conversion failed: %s", stderrOutput))
+			}
+		} else {
+			m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("MP3 conversion failed: %v", err))
+		}
+		return
+	}
+
+	// Success - find the converted MP3 file
+	m.updateStatus(id, "processing", 100, "", "", "Opening File Picker...")
+
+	convertedFile, err := m.findDownloadedFile(tempDir)
+	if err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Could not find converted MP3 file: %v", err))
+		return
+	}
+
+	// Open File Picker for user to choose destination
+	finalPath, err := m.openFilePicker(convertedFile)
+	if err != nil {
+		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to save MP3 file: %v", err))
+		return
+	}
+
+	m.updateStatus(id, "completed", 100, "", "", fmt.Sprintf("MP3 saved as: %s", filepath.Base(finalPath)))
+}
+
+func (m *Manager) cleanYouTubeURL(rawURL string) (string, error) {
+	// Parse and clean the YouTube URL (adapted from existing project)
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	
+	// Handle youtu.be format
+	if strings.Contains(u.Host, "youtu.be") {
+		videoID := strings.TrimPrefix(u.Path, "/")
+		return "https://www.youtube.com/watch?v=" + videoID, nil
+	}
+	
+	// Handle youtube.com format
+	q := u.Query()
+	videoID := q.Get("v")
+	if videoID == "" {
+		return "", fmt.Errorf("missing v parameter in URL")
+	}
+	
+	return "https://www.youtube.com/watch?v=" + videoID, nil
 }
 
 func (m *Manager) updateStatus(id, status string, progress float64, speed, eta, message string) {

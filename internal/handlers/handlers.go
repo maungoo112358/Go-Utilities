@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 	"Go-Utilities/internal/downloader"
 	"Go-Utilities/internal/models"
 	
@@ -18,6 +19,7 @@ var upgrader = websocket.Upgrader{
 }
 
 var downloadManager *downloader.Manager
+var shutdownSignal = make(chan bool, 10) // Buffered channel for shutdown signals
 
 func init() {
 	downloadManager = downloader.NewManager()
@@ -25,6 +27,17 @@ func init() {
 	// Test yt-dlp on startup
 	if err := downloadManager.TestYtDlp(); err != nil {
 		log.Printf("WARNING: yt-dlp test failed: %v", err)
+	}
+}
+
+// SendShutdownSignal sends shutdown signal to all connected WebSocket clients
+func SendShutdownSignal() {
+	log.Println("Sending shutdown signal to all WebSocket clients...")
+	select {
+	case shutdownSignal <- true:
+		log.Println("Shutdown signal sent")
+	default:
+		log.Println("Shutdown signal channel full")
 	}
 }
 
@@ -91,14 +104,90 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	
 	log.Printf("WebSocket connection established")
 	updates := downloadManager.SubscribeToUpdates()
-	for update := range updates {
-		log.Printf("Sending WebSocket update: %+v", update)
-		if err := conn.WriteJSON(update); err != nil {
-			log.Printf("WebSocket write error: %v", err)
-			break
+	
+	// Listen for both download updates and shutdown signals
+	for {
+		select {
+		case update := <-updates:
+			log.Printf("Sending WebSocket update: %+v", update)
+			if err := conn.WriteJSON(update); err != nil {
+				log.Printf("WebSocket write error: %v", err)
+				return
+			}
+			
+		case <-shutdownSignal:
+			log.Printf("Sending shutdown signal to WebSocket client")
+			shutdownMsg := map[string]interface{}{
+				"type": "shutdown",
+				"message": "Application is shutting down",
+			}
+			if err := conn.WriteJSON(shutdownMsg); err != nil {
+				log.Printf("Failed to send shutdown signal: %v", err)
+			}
+			// Give client time to process shutdown signal
+			time.Sleep(500 * time.Millisecond)
+			return
 		}
 	}
-	log.Printf("WebSocket connection closed")
+}
+
+func Mp3ConvertHandler(w http.ResponseWriter, r *http.Request) {
+	var req models.DownloadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Invalid request body: %v", err)
+		sendJSONError(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	
+	log.Printf("Starting MP3 conversion for URL: %s", req.URL)
+	downloadID := downloadManager.StartMp3Convert(req.URL)
+	log.Printf("MP3 conversion started with ID: %s", downloadID)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.DownloadResponse{
+		Success: true,
+		Message: "MP3 conversion started",
+		FileName: downloadID,
+	})
+}
+
+func ShutdownHandler(w http.ResponseWriter, r *http.Request) {
+	// Return JavaScript that closes the current tab
+	html := `<!DOCTYPE html>
+<html>
+<head>
+    <title>Shutting Down</title>
+    <style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #121212;
+            color: #FFFFFF;
+            text-align: center;
+            padding: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Application Shutting Down</h1>
+    <p>This tab will close automatically.</p>
+    <script>
+        // Try multiple methods to close the tab
+        setTimeout(() => {
+            // Method 1: window.close()
+            window.close();
+            
+            // Method 2: If window.close() doesn't work, try to navigate away
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 500);
+        }, 1000);
+    </script>
+</body>
+</html>`
+	
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(html))
 }
 
 func sendJSONError(w http.ResponseWriter, message string, code int) {

@@ -56,11 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Control button handlers (using event delegation since buttons are created dynamically)
     document.addEventListener('click', (e) => {
+        console.log('Click detected on element:', e.target.id, e.target.tagName, e.target.className);
+        
         if (e.target.id === 'cancelBtn') {
             handleCancelDownload();
         } else if (e.target.id === 'pauseResumeBtn') {
             handlePauseResumeDownload();
         } else if (e.target.id === 'convertMp3Btn') {
+            console.log('MP3 Convert button clicked!');
             handleMp3Convert();
         } else if (e.target.id === 'mp3CancelBtn') {
             handleCancelDownload(); // Reuse the same cancel logic
@@ -258,7 +261,23 @@ document.addEventListener('DOMContentLoaded', () => {
         
         ws.onmessage = (event) => {
             const update = JSON.parse(event.data);
-            console.log('Progress update:', update); // Debug logging
+            console.log('WebSocket message:', update); // Debug logging
+            
+            // Handle shutdown signal
+            if (update.type === 'shutdown') {
+                console.log('Received shutdown signal - closing tab');
+                showShutdownMessage();
+                setTimeout(() => {
+                    window.close();
+                    // Fallback if window.close() doesn't work
+                    if (!window.closed) {
+                        window.location.href = 'about:blank';
+                    }
+                }, 2000);
+                return;
+            }
+            
+            // Handle regular progress updates
             handleProgressUpdate(update);
         };
         
@@ -277,11 +296,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (update.id !== currentDownloadId) return;
         
-        const progressFill = document.querySelector('.progress-fill');
-        const progressPercentage = document.querySelector('.progress-percentage');
-        const progressText = document.querySelector('.progress-text');
-        const downloadSpeed = document.querySelector('.download-speed');
-        const downloadEta = document.querySelector('.download-eta');
+        // Determine if this is MP3 or video download based on ID prefix
+        const isMp3 = update.id.startsWith('mp3_');
+        const containerSelector = isMp3 ? '#mp3ProgressContainer' : '#progressContainer';
+        
+        const progressFill = document.querySelector(`${containerSelector} .progress-fill`);
+        const progressPercentage = document.querySelector(`${containerSelector} .progress-percentage`);
+        const progressText = document.querySelector(`${containerSelector} .progress-text`);
+        const downloadSpeed = document.querySelector(`${containerSelector} .download-speed`);
+        const downloadEta = document.querySelector(`${containerSelector} .download-eta`);
         
         if (progressFill) progressFill.style.width = `${update.progress}%`;
         if (progressPercentage) progressPercentage.textContent = `${Math.round(update.progress)}%`;
@@ -298,22 +321,33 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'downloading':
                 if (progressText) progressText.textContent = 'Downloading...';
                 break;
+            case 'converting':
+                if (progressText) progressText.textContent = 'Converting to MP3...';
+                break;
             case 'processing':
-                if (progressText) progressText.textContent = 'Processing...';
+                if (progressText) progressText.textContent = isMp3 ? 'Processing MP3...' : 'Processing...';
                 break;
             case 'completed':
                 if (progressText) progressText.textContent = 'Completed!';
                 setTimeout(() => {
-                    hideProgress();
-                    // Show resolution section again if URL is still valid
-                    if (currentVideoInfo && urlInput.value.trim() && isValidYouTubeURL(urlInput.value.trim())) {
-                        showResolutionSection();
+                    if (isMp3) {
+                        hideMp3Progress();
+                    } else {
+                        hideProgress();
+                        // Show resolution section again if URL is still valid
+                        if (currentVideoInfo && urlInput.value.trim() && isValidYouTubeURL(urlInput.value.trim())) {
+                            showResolutionSection();
+                        }
                     }
                 }, 3000);
                 break;
             case 'error':
-                showError(update.message || 'Download failed');
-                hideProgress();
+                showError(update.message || (isMp3 ? 'MP3 conversion failed' : 'Download failed'));
+                if (isMp3) {
+                    hideMp3Progress();
+                } else {
+                    hideProgress();
+                }
                 break;
         }
     }
@@ -402,11 +436,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function handleMp3Convert() {
+        console.log('handleMp3Convert function called');
+        
         const mp3UrlInput = document.getElementById('mp3UrlInput');
         const convertMp3Btn = document.getElementById('convertMp3Btn');
         const mp3ProgressContainer = document.getElementById('mp3ProgressContainer');
         
+        console.log('MP3 elements found:', {
+            urlInput: !!mp3UrlInput,
+            button: !!convertMp3Btn,
+            progressContainer: !!mp3ProgressContainer,
+            urlValue: mp3UrlInput?.value
+        });
+        
         if (!mp3UrlInput || !mp3UrlInput.value.trim()) {
+            console.log('No URL entered');
             showError('Please enter a YouTube URL');
             return;
         }
@@ -473,6 +517,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         currentDownloadId = null;
+    }
+    
+    function showShutdownMessage() {
+        // Create shutdown overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(18, 18, 18, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            font-family: 'JetBrains Mono', monospace;
+        `;
+        
+        const message = document.createElement('div');
+        message.style.cssText = `
+            text-align: center;
+            color: #FFFFFF;
+            padding: 40px;
+            border-radius: 8px;
+            background-color: #1A1A1A;
+            border: 1px solid #333333;
+        `;
+        
+        message.innerHTML = `
+            <h2 style="color: #5A4FCF; margin-bottom: 16px; font-size: 18px;">Application Shutting Down</h2>
+            <p style="color: #BBBBBB; font-size: 14px;">This tab will close automatically...</p>
+        `;
+        
+        overlay.appendChild(message);
+        document.body.appendChild(overlay);
     }
     
     function showError(message) {

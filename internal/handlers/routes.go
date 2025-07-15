@@ -15,9 +15,13 @@ func SetupRoutes() *mux.Router {
 	// Main page
 	r.HandleFunc("/", HomeHandler).Methods("GET")
 	
+	// Shutdown page (for graceful browser closure)
+	r.HandleFunc("/shutdown", ShutdownHandler).Methods("GET")
+	
 	// API routes
 	api := r.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/download", DownloadHandler).Methods("POST")
+	api.HandleFunc("/mp3-convert", Mp3ConvertHandler).Methods("POST")
 	api.HandleFunc("/video-info", VideoInfoHandler).Methods("POST")
 	api.HandleFunc("/ws", WebSocketHandler)
 	
