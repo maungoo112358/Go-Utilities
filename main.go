@@ -16,7 +16,7 @@ import (
 func main() {
 	router := handlers.SetupRoutes()
 
-	port := ":8080"
+	port := ":8484"
 	url := "http://localhost" + port
 
 	// Create HTTP server
@@ -72,24 +72,24 @@ func openBrowser(url string) {
 func setupGracefulShutdown(server *http.Server, url string) {
 	// Create a channel to receive OS signals
 	sigChan := make(chan os.Signal, 1)
-	
+
 	// Register the channel to receive specific signals
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	
+
 	// Block until a signal is received
 	sig := <-sigChan
 	log.Printf("Received signal: %v. Shutting down gracefully...", sig)
-	
+
 	// Send shutdown signal to WebSocket clients first
 	handlers.SendShutdownSignal()
-	
+
 	// Give clients time to receive shutdown signal and close
 	time.Sleep(1 * time.Second)
-	
+
 	// Create a context with timeout for server shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	// Attempt graceful shutdown
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("Server forced to shutdown: %v", err)
@@ -97,4 +97,3 @@ func setupGracefulShutdown(server *http.Server, url string) {
 		log.Println("Server shutdown complete")
 	}
 }
-
