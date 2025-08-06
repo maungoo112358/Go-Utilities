@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 )
@@ -40,26 +39,67 @@ func main() {
 }
 
 func openBrowser(url string) {
-	var err error
-
-	switch runtime.GOOS {
-	case "windows":
-		err = exec.Command("cmd", "/c", "start", url).Start()
-	case "darwin":
-		err = exec.Command("open", url).Start()
-	case "linux":
-		err = exec.Command("xdg-open", url).Start()
-	default:
-		log.Printf(consts.LOG_UNSUPPORTED_PLATFORM, url)
-		return
-	}
-
+	err := exec.Command("cmd", "/c", "start", url).Start()
+	
 	if err != nil {
-		log.Printf(consts.ERR_OPEN_BROWSER, err)
-		log.Printf(consts.LOG_OPEN_MANUALLY, url)
+		err = openWithDefaultBrowser(url)
+		if err != nil {
+			log.Printf(consts.LOG_BROWSER_OPEN_FAILED, err, url)
+		} else {
+			log.Printf(consts.LOG_OPENING_BROWSER, url)
+		}
 	} else {
 		log.Printf(consts.LOG_OPENING_BROWSER, url)
 	}
+}
+
+func openWithDefaultBrowser(url string) error {
+	browsers := []struct {
+		name string
+		paths []string
+	}{
+		{
+			name: consts.BROWSER_NAME_CHROME,
+			paths: []string{
+				consts.CHROME_PATH_1,
+				consts.CHROME_PATH_2,
+				os.Getenv("LOCALAPPDATA") + consts.CHROME_PATH_USER,
+			},
+		},
+		{
+			name: consts.BROWSER_NAME_FIREFOX, 
+			paths: []string{
+				consts.FIREFOX_PATH_1,
+				consts.FIREFOX_PATH_2,
+			},
+		},
+		{
+			name: consts.BROWSER_NAME_EDGE,
+			paths: []string{
+				consts.EDGE_PATH_1,
+				consts.EDGE_PATH_2,
+			},
+		},
+		{
+			name: consts.BROWSER_NAME_BRAVE,
+			paths: []string{
+				consts.BRAVE_PATH_1,
+				consts.BRAVE_PATH_2,
+			},
+		},
+	}
+
+	for _, browser := range browsers {
+		for _, path := range browser.paths {
+			if _, err := os.Stat(path); err == nil {
+				if err := exec.Command(path, url).Start(); err == nil {
+					return nil
+				}
+			}
+		}
+	}
+
+	return exec.Command(consts.RUNDLL32_COMMAND, consts.URL_DLL_HANDLER, url).Start()
 }
 
 func setupGracefulShutdown(server *http.Server) {

@@ -71,8 +71,7 @@ func executeMp3ConversionProcess(args []string, progressCallback ProgressCallbac
 		return "", nil, fmt.Errorf(consts.ERR_START_YT_DLP_MP3, err)
 	}
 
-	log.Printf(consts.LOG_CONVERTING_TO_MP3)
-	log.Printf(consts.LOG_PATH, ytDlpPath)
+	log.Printf(consts.LOG_CONVERTING_TO_MP3_PATH, ytDlpPath)
 
 	cmd := exec.Command(ytDlpPath, args...)
 	stdout, err := cmd.StdoutPipe()

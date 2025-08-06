@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shutting Down</title>
+    <style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #121212;
+            color: #FFFFFF;
+            text-align: center;
+            padding: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Application Shutting Down</h1>
+    <p>This tab will close automatically.</p>
+    <script>
+        // Try multiple methods to close the tab
+        setTimeout(() => {
+            // Method 1: window.close()
+            window.close();
+            
+            // Method 2: If window.close() doesn't work, try to navigate away
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 500);
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -76,6 +76,15 @@ const (
 const (
 	FFMPEG_LOCATION_FLAG = "--ffmpeg-location"
 	YT_DLP_VERSION_FLAG  = "--version"
+	FORMAT_FLAG          = "-f"
+)
+
+//---------- YT-DLP FORMAT STRINGS --------------
+const (
+	QUALITY_SUFFIX                 = "p"
+	QUALITY_HEIGHT_FORMAT          = "bestvideo[height<=%s][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=%s]+bestaudio/best[height<=%s]"
+	QUALITY_CUSTOM_FORMAT          = "(%s+bestaudio[ext=m4a])/(%s+bestaudio)/%s/best"
+	QUALITY_BEST_FORMAT            = "bestvideo[height>=1080]+bestaudio[ext=m4a]/bestvideo[height>=1080]+bestaudio/bestvideo[height>=720][fps>=30]+bestaudio[ext=m4a]/bestvideo[height>=720][fps>=30]+bestaudio/bestvideo[height>=720]+bestaudio[ext=m4a]/bestvideo[height>=720]+bestaudio/best[height>=720]/best"
 )
 
 //---------- URL PATTERNS AND COMPONENTS --------------
@@ -96,6 +105,86 @@ const (
 const (
 	BYTES_UNIT      = 1024
 	FILE_SIZE_UNITS = "KMGTPE"
+	APPROX_PREFIX   = "~"
+)
+
+//---------- VIDEO INFO JSON FIELDS --------------
+const (
+	JSON_TITLE            = "title"
+	JSON_DURATION         = "duration"
+	JSON_THUMBNAIL        = "thumbnail"
+	JSON_FORMATS          = "formats"
+	JSON_HEIGHT           = "height"
+	JSON_VCODEC           = "vcodec"
+	JSON_ACODEC           = "acodec"
+	JSON_EXT              = "ext"
+	JSON_FORMAT_ID        = "format_id"
+	JSON_TBR              = "tbr"
+	JSON_FILESIZE         = "filesize"
+	JSON_FILESIZE_APPROX  = "filesize_approx"
+	VCODEC_NONE           = "none"
+	RESOLUTION_UNKNOWN    = "unknown"
+	RESOLUTION_FORMAT     = "%dp"
+	DURATION_FORMAT       = "%d:%02d"
+)
+
+//---------- HTTP ROUTES AND PATHS --------------
+const (
+	STATIC_DIR_PATH           = "./static"
+	STATIC_ROUTE_PREFIX       = "/static/"
+	HOME_ROUTE                = "/"
+	SHUTDOWN_ROUTE            = "/shutdown"
+	API_ROUTE_PREFIX          = "/api"
+	DOWNLOAD_ROUTE            = "/download"
+	MP3_CONVERT_ROUTE         = "/mp3-convert"
+	VIDEO_INFO_ROUTE          = "/video-info"
+	WEBSOCKET_ROUTE           = "/ws"
+	TEMPLATE_PATH             = "static/html/index.html"
+	SHUTDOWN_TEMPLATE_PATH    = "static/html/shutdown.html"
+)
+
+//---------- HTTP METHODS --------------
+const (
+	HTTP_GET  = "GET"
+	HTTP_POST = "POST"
+)
+
+//---------- HTTP HEADERS --------------
+const (
+	CONTENT_TYPE_JSON = "application/json"
+	CONTENT_TYPE_HTML = "text/html"
+	HEADER_CONTENT_TYPE = "Content-Type"
+)
+
+//---------- WEBSOCKET CONFIGURATION --------------
+const (
+	SHUTDOWN_SIGNAL_BUFFER = 10
+	SHUTDOWN_DELAY_MS      = 500
+	WS_MESSAGE_TYPE_SHUTDOWN = "shutdown"
+)
+
+//---------- BROWSER PATHS --------------
+const (
+	CHROME_PATH_1    = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+	CHROME_PATH_2    = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+	CHROME_PATH_USER = "\\Google\\Chrome\\Application\\chrome.exe"
+	
+	FIREFOX_PATH_1 = "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+	FIREFOX_PATH_2 = "C:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe"
+	
+	EDGE_PATH_1 = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+	EDGE_PATH_2 = "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+	
+	BRAVE_PATH_1 = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+	BRAVE_PATH_2 = "C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+	
+	BROWSER_NAME_CHROME  = "chrome"
+	BROWSER_NAME_FIREFOX = "firefox"
+	BROWSER_NAME_EDGE    = "edge"
+	BROWSER_NAME_BRAVE   = "brave"
+	
+	RUNDLL32_COMMAND = "rundll32"
+	URL_DLL_HANDLER  = "url.dll,FileProtocolHandler"
 )
 
 //---------- POWERSHELL SCRIPTS --------------

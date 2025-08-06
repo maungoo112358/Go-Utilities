@@ -1,15 +1,15 @@
 package handlers
 
 import (
+	"Go-Utilities/internal/consts"
+	"Go-Utilities/internal/downloader"
+	"Go-Utilities/internal/models"
 	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
 	"time"
-	"Go-Utilities/internal/consts"
-	"Go-Utilities/internal/downloader"
-	"Go-Utilities/internal/models"
-	
+
 	"github.com/gorilla/websocket"
 )
 
@@ -20,11 +20,11 @@ var upgrader = websocket.Upgrader{
 }
 
 var downloadManager *downloader.Manager
-var shutdownSignal = make(chan bool, 10) // Buffered channel for shutdown signals
+var shutdownSignal = make(chan bool, consts.SHUTDOWN_SIGNAL_BUFFER) // Buffered channel for shutdown signals
 
 func init() {
 	downloadManager = downloader.NewManager()
-	
+
 	if err := downloadManager.TestYtDlp(); err != nil {
 		log.Printf(consts.LOG_YT_DLP_TEST_FAILED, err)
 	}
@@ -42,34 +42,34 @@ func SendShutdownSignal() {
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("templates/index.html")
+	tmpl, err := template.ParseFiles(consts.TEMPLATE_PATH)
 	if err != nil {
 		log.Printf(consts.LOG_TEMPLATE_ERROR, err)
 		http.Error(w, consts.ERR_TEMPLATE+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := tmpl.Execute(w, nil); err != nil {
-		log.Printf("Template execution error: %v", err)
-		http.Error(w, "Template execution error", http.StatusInternalServerError)
+		log.Printf(consts.LOG_TEMPLATE_EXECUTION_ERROR, err)
+		http.Error(w, consts.ERR_TEMPLATE_EXECUTION, http.StatusInternalServerError)
 	}
 }
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req models.DownloadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Invalid request body: %v", err)
-		sendJSONError(w, "Invalid request", http.StatusBadRequest)
+		log.Printf(consts.LOG_INVALID_REQUEST_BODY, err)
+		sendJSONError(w, consts.ERR_INVALID_REQUEST, http.StatusBadRequest)
 		return
 	}
-	
-	log.Printf("Starting download for URL: %s, Quality: %s", req.URL, req.Quality)
+
+	log.Printf(consts.LOG_STARTING_DOWNLOAD, req.URL, req.Quality)
 	downloadID := downloadManager.StartDownload(req.URL, req.Quality)
-	log.Printf("Download started with ID: %s", downloadID)
-	
-	w.Header().Set("Content-Type", "application/json")
+	log.Printf(consts.LOG_DOWNLOAD_STARTED, downloadID)
+
+	w.Header().Set(consts.HEADER_CONTENT_TYPE, consts.CONTENT_TYPE_JSON)
 	json.NewEncoder(w).Encode(models.DownloadResponse{
-		Success: true,
-		Message: "Download started",
+		Success:  true,
+		Message:  consts.MSG_DOWNLOAD_STARTED,
 		FileName: downloadID,
 	})
 }
@@ -78,54 +78,54 @@ func VideoInfoHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		URL string `json:"url"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendJSONError(w, "Invalid request", http.StatusBadRequest)
+		sendJSONError(w, consts.ERR_INVALID_REQUEST_INFO, http.StatusBadRequest)
 		return
 	}
-	
+
 	videoInfo, err := downloadManager.GetVideoInfo(req.URL)
 	if err != nil {
 		sendJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
-	w.Header().Set("Content-Type", "application/json")
+
+	w.Header().Set(consts.HEADER_CONTENT_TYPE, consts.CONTENT_TYPE_JSON)
 	json.NewEncoder(w).Encode(videoInfo)
 }
 
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf(consts.LOG_WS_UPGRADE_ERROR, err)
 		return
 	}
 	defer conn.Close()
-	
-	log.Printf("WebSocket connection established")
+
+	log.Printf(consts.LOG_WS_CONNECTION_ESTABLISHED)
 	updates := downloadManager.SubscribeToUpdates()
-	
+
 	// Listen for both download updates and shutdown signals
 	for {
 		select {
 		case update := <-updates:
-			log.Printf("Sending WebSocket update: %+v", update)
+			log.Printf(consts.LOG_SENDING_WS_UPDATE, update)
 			if err := conn.WriteJSON(update); err != nil {
-				log.Printf("WebSocket write error: %v", err)
+				log.Printf(consts.LOG_WS_WRITE_ERROR, err)
 				return
 			}
-			
+
 		case <-shutdownSignal:
-			log.Printf("Sending shutdown signal to WebSocket client")
+			log.Printf(consts.LOG_SENDING_SHUTDOWN_TO_WS)
 			shutdownMsg := map[string]interface{}{
-				"type": "shutdown",
-				"message": "Application is shutting down",
+				"type":    consts.WS_MESSAGE_TYPE_SHUTDOWN,
+				"message": consts.MSG_SHUTDOWN_SIGNAL,
 			}
 			if err := conn.WriteJSON(shutdownMsg); err != nil {
-				log.Printf("Failed to send shutdown signal: %v", err)
+				log.Printf(consts.ERR_SEND_SHUTDOWN_SIGNAL, err)
 			}
 			// Give client time to process shutdown signal
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(consts.SHUTDOWN_DELAY_MS * time.Millisecond)
 			return
 		}
 	}
@@ -134,64 +134,38 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 func Mp3ConvertHandler(w http.ResponseWriter, r *http.Request) {
 	var req models.DownloadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Invalid request body: %v", err)
-		sendJSONError(w, "Invalid request", http.StatusBadRequest)
+		log.Printf(consts.LOG_INVALID_REQUEST_BODY_MP3, err)
+		sendJSONError(w, consts.ERR_INVALID_REQUEST_MP3, http.StatusBadRequest)
 		return
 	}
-	
-	log.Printf("Starting MP3 conversion for URL: %s", req.URL)
+
+	log.Printf(consts.LOG_STARTING_MP3_CONVERSION, req.URL)
 	downloadID := downloadManager.StartMp3Convert(req.URL)
-	log.Printf("MP3 conversion started with ID: %s", downloadID)
-	
-	w.Header().Set("Content-Type", "application/json")
+	log.Printf(consts.LOG_MP3_CONVERSION_STARTED, downloadID)
+
+	w.Header().Set(consts.HEADER_CONTENT_TYPE, consts.CONTENT_TYPE_JSON)
 	json.NewEncoder(w).Encode(models.DownloadResponse{
-		Success: true,
-		Message: "MP3 conversion started",
+		Success:  true,
+		Message:  consts.MSG_MP3_CONVERSION_STARTED,
 		FileName: downloadID,
 	})
 }
 
 func ShutdownHandler(w http.ResponseWriter, r *http.Request) {
-	// Return JavaScript that closes the current tab
-	html := `<!DOCTYPE html>
-<html>
-<head>
-    <title>Shutting Down</title>
-    <style>
-        body {
-            font-family: 'JetBrains Mono', monospace;
-            background-color: #121212;
-            color: #FFFFFF;
-            text-align: center;
-            padding: 50px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Application Shutting Down</h1>
-    <p>This tab will close automatically.</p>
-    <script>
-        // Try multiple methods to close the tab
-        setTimeout(() => {
-            // Method 1: window.close()
-            window.close();
-            
-            // Method 2: If window.close() doesn't work, try to navigate away
-            setTimeout(() => {
-                window.location.href = 'about:blank';
-            }, 500);
-        }, 1000);
-    </script>
-</body>
-</html>`
-	
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(html))
+	tmpl, err := template.ParseFiles(consts.SHUTDOWN_TEMPLATE_PATH)
+	if err != nil {
+		log.Printf(consts.LOG_TEMPLATE_ERROR, err)
+		http.Error(w, consts.ERR_TEMPLATE+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := tmpl.Execute(w, nil); err != nil {
+		log.Printf(consts.LOG_TEMPLATE_EXECUTION_ERROR, err)
+		http.Error(w, consts.ERR_TEMPLATE_EXECUTION, http.StatusInternalServerError)
+	}
 }
 
 func sendJSONError(w http.ResponseWriter, message string, code int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(consts.HEADER_CONTENT_TYPE, consts.CONTENT_TYPE_JSON)
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(models.DownloadResponse{
 		Success: false,

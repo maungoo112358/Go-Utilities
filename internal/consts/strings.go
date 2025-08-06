@@ -10,13 +10,13 @@ const (
 	LOG_URL_MP3                  = "URL: %s -> %s"
 	LOG_TEMP_DIR_MP3             = "Temp dir: %s"
 	LOG_DOWNLOADING_COMMAND      = "=== DOWNLOADING WITH COMMAND ==="
-	LOG_CONVERTING_TO_MP3        = "=== CONVERTING TO MP3 ==="
+	LOG_CONVERTING_TO_MP3_PATH   = "=== CONVERTING TO MP3 === | Path: %s"
 	LOG_RAW_VIDEO_INFO           = "=== RAW VIDEO INFO OUTPUT ==="
-	LOG_AVAILABLE_FORMATS        = "=== AVAILABLE FORMATS ==="
-	LOG_OUTPUT_LENGTH            = "Output length: %d bytes"
-	LOG_FIRST_1000_CHARS         = "First 1000 chars: %s"
+	LOG_AVAILABLE_FORMATS_TOTAL  = "=== AVAILABLE FORMATS === | Total formats found: %d"
+	LOG_RAW_VIDEO_INFO_LENGTH    = "=== RAW VIDEO INFO OUTPUT === | Output length: %d bytes"
+	LOG_FIRST_1000_CHARS        = "First 1000 chars: %s"
 	LOG_FULL_OUTPUT              = "Full output: %s"
-	LOG_TOTAL_FORMATS            = "Total formats found: %d"
+	LOG_YT_DLP_INFO_FAILED_STDERR = "yt-dlp video info command failed: %v | yt-dlp stderr: %s"
 	LOG_FORMAT_DETAILS           = "Format %d: height=%v, vcodec=%v, acodec=%v, ext=%v, format_id=%v, tbr=%v"
 	LOG_FOUND_VIDEO_FORMAT       = "Found video format: %s (format_id: %v)"
 	LOG_GETTING_VIDEO_INFO       = "Getting video info with command: %s -j --no-warnings %s"
@@ -67,6 +67,7 @@ const (
 
 // ---------- LOG MESSAGES - DOWNLOAD/CONVERSION PROCESS --------------
 const (
+	LOG_DOWNLOAD_COMMAND_INFO    = "=== DOWNLOADING WITH COMMAND === | Path: %s | Full args: %v | Quality requested: %s | URL: %s"
 	LOG_STARTING_DOWNLOAD        = "Starting download for URL: %s, Quality: %s"
 	LOG_DOWNLOAD_STARTED         = "Download started with ID: %s"
 	LOG_STARTING_MP3_CONVERSION  = "Starting MP3 conversion for URL: %s"
@@ -156,6 +157,7 @@ const (
 	ERR_TEMPLATE_EXECUTION   = "Template execution error"
 	ERR_SERVER_START         = "Server failed to start:"
 	ERR_OPEN_BROWSER         = "Failed to open browser automatically: %v"
+	LOG_BROWSER_OPEN_FAILED  = "Failed to open browser automatically: %v | Please open %s manually"
 	ERR_FORCED_SHUTDOWN      = "Server forced to shutdown: %v"
 	ERR_SEND_SHUTDOWN_SIGNAL = "Failed to send shutdown signal: %v"
 )
@@ -170,6 +172,9 @@ const (
 	YT_DLP_FORBIDDEN_403            = "403"
 	YT_DLP_FORBIDDEN_TEXT           = "Forbidden"
 	YT_DLP_SIGN_IN_REQUIRED         = "Sign in"
+	YT_DLP_FRAGMENT_TEXT            = "fragment"
+	YT_DLP_NOT_FOUND_TEXT           = "not found"
+	YT_DLP_PRIVATE_VIDEO_TEXT       = "Private video"
 	MP3_CONVERSION_FAILED_PREFIX    = "mp3 conversion failed: %s"
 	MP3_CONVERSION_FAILED_EXIT_CODE = "mp3 conversion failed (exit code %d): %s"
 	MP3_CONVERSION_FAILED_GENERIC   = "mp3 conversion failed: %v"
@@ -179,5 +184,15 @@ const (
 const (
 	YOUTUBE_WATCH_URL = "https://www.youtube.com/watch?v=%s"
 )
+
+//---------- HTTP RESPONSE MESSAGES --------------
+const (
+	MSG_DOWNLOAD_STARTED     = "Download started"
+	MSG_MP3_CONVERSION_STARTED = "MP3 conversion started"
+	MSG_SHUTDOWN_SIGNAL      = "Application is shutting down"
+	MSG_TAB_CLOSE_AUTO       = "This tab will close automatically."
+	MSG_APP_SHUTTING_DOWN    = "Application Shutting Down"
+)
+
 
 //nolint:ST1005

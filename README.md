@@ -79,10 +79,11 @@ youtube-downloader/
 ├── static/
 │   ├── css/
 │   │   └── styles.css       # Modern CSS with gradients
+│   ├── html/
+│   │   ├── index.html       # Main HTML template
+│   │   └── shutdown.html    # Shutdown page template
 │   └── js/
 │       └── app.js           # Frontend JavaScript
-├── templates/
-│   └── index.html           # Main HTML template
 ├── downloads/               # Downloaded videos (created automatically)
 ├── go.mod
 └── README.md
