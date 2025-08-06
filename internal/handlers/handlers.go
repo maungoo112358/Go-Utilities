@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"Go-Utilities/internal/consts"
 	"Go-Utilities/internal/downloader"
 	"Go-Utilities/internal/models"
 	
@@ -24,28 +25,27 @@ var shutdownSignal = make(chan bool, 10) // Buffered channel for shutdown signal
 func init() {
 	downloadManager = downloader.NewManager()
 	
-	// Test yt-dlp on startup
 	if err := downloadManager.TestYtDlp(); err != nil {
-		log.Printf("WARNING: yt-dlp test failed: %v", err)
+		log.Printf(consts.LOG_YT_DLP_TEST_FAILED, err)
 	}
 }
 
 // SendShutdownSignal sends shutdown signal to all connected WebSocket clients
 func SendShutdownSignal() {
-	log.Println("Sending shutdown signal to all WebSocket clients...")
+	log.Println(consts.LOG_SENDING_SHUTDOWN_SIGNAL)
 	select {
 	case shutdownSignal <- true:
-		log.Println("Shutdown signal sent")
+		log.Println(consts.LOG_SHUTDOWN_SIGNAL_SENT)
 	default:
-		log.Println("Shutdown signal channel full")
+		log.Println(consts.LOG_SHUTDOWN_SIGNAL_FULL)
 	}
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("templates/index.html")
 	if err != nil {
-		log.Printf("Template error: %v", err)
-		http.Error(w, "Template error: "+err.Error(), http.StatusInternalServerError)
+		log.Printf(consts.LOG_TEMPLATE_ERROR, err)
+		http.Error(w, consts.ERR_TEMPLATE+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := tmpl.Execute(w, nil); err != nil {
