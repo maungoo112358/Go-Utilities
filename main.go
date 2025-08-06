@@ -40,7 +40,7 @@ func main() {
 	openBrowser(url)
 
 	// Set up graceful shutdown
-	setupGracefulShutdown(server, url)
+	setupGracefulShutdown(server)
 }
 
 func openBrowser(url string) {
@@ -69,7 +69,7 @@ func openBrowser(url string) {
 	}
 }
 
-func setupGracefulShutdown(server *http.Server, url string) {
+func setupGracefulShutdown(server *http.Server) {
 	// Create a channel to receive OS signals
 	sigChan := make(chan os.Signal, 1)
 

@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"Go-Utilities/internal/models"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"Go-Utilities/internal/models"
 )
 
 type Manager struct {
@@ -46,15 +46,15 @@ func getYtDlpPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Build absolute path to yt-dlp.exe
 	ytDlpPath := filepath.Join(wd, "yt-dlp.exe")
-	
+
 	// Check if it exists
 	if _, err := os.Stat(ytDlpPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("yt-dlp.exe not found at %s", ytDlpPath)
 	}
-	
+
 	return ytDlpPath, nil
 }
 
@@ -64,15 +64,15 @@ func (m *Manager) getFFmpegPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Build absolute path to ffmpeg.exe
 	ffmpegPath := filepath.Join(wd, "ffmpeg.exe")
-	
+
 	// Check if it exists
 	if _, err := os.Stat(ffmpegPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("ffmpeg.exe not found at %s", ffmpegPath)
 	}
-	
+
 	return ffmpegPath, nil
 }
 
@@ -81,22 +81,22 @@ func (m *Manager) TestYtDlp() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Test with version command
 	cmd := exec.Command(ytDlpPath, "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("yt-dlp test failed: %v", err)
 	}
-	
+
 	version := strings.TrimSpace(string(output))
 	log.Printf("yt-dlp version: %s", version)
-	
+
 	// Check if version looks old (very basic check)
 	if len(version) > 0 && version < "2024" {
 		log.Printf("WARNING: yt-dlp version may be outdated. Consider updating from https://github.com/yt-dlp/yt-dlp/releases")
 	}
-	
+
 	return nil
 }
 
@@ -105,7 +105,7 @@ func (m *Manager) findDownloadedFile(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	for _, file := range files {
 		if info, err := os.Stat(file); err == nil && !info.IsDir() {
 			// Skip fragment files and other temp files
@@ -115,7 +115,7 @@ func (m *Manager) findDownloadedFile(dir string) (string, error) {
 			}
 		}
 	}
-	
+
 	return "", fmt.Errorf("no video file found in %s", dir)
 }
 
@@ -124,81 +124,42 @@ func (m *Manager) addResolutionToFilename(filePath, quality string) string {
 	filename := filepath.Base(filePath)
 	ext := filepath.Ext(filename)
 	nameWithoutExt := strings.TrimSuffix(filename, ext)
-	
+
 	// Add resolution to filename if not already present
 	if quality != "" && quality != "best" && !strings.Contains(nameWithoutExt, quality) {
 		newFilename := fmt.Sprintf("%s [%s]%s", nameWithoutExt, quality, ext)
 		return filepath.Join(dir, newFilename)
 	}
-	
-	return filePath
-}
 
-func (m *Manager) openFileExplorerForSaving(sourceFile string) (string, error) {
-	// Create downloads folder as default
-	downloadsDir, err := os.UserHomeDir()
-	if err != nil {
-		downloadsDir = "."
-	}
-	downloadsDir = filepath.Join(downloadsDir, "Downloads")
-	os.MkdirAll(downloadsDir, 0755)
-	
-	// Get unique filename to handle duplicates
-	filename := filepath.Base(sourceFile)
-	uniquePath := m.getUniqueFilePath(downloadsDir, filename)
-	
-	if err := m.copyFile(sourceFile, uniquePath); err != nil {
-		return "", fmt.Errorf("failed to copy to downloads folder: %v", err)
-	}
-	
-	// Open File Explorer to the downloads folder
-	switch runtime.GOOS {
-	case "windows":
-		// Open File Explorer and select the file
-		cmd := exec.Command("explorer", "/select,", uniquePath)
-		if err := cmd.Start(); err != nil {
-			log.Printf("Failed to open File Explorer: %v", err)
-			// Fallback: just open the folder
-			exec.Command("explorer", downloadsDir).Start()
-		}
-	case "darwin":
-		exec.Command("open", "-R", uniquePath).Start()
-	case "linux":
-		exec.Command("xdg-open", downloadsDir).Start()
-	}
-	
-	// Clean up temp file
-	os.Remove(sourceFile)
-	
-	return uniquePath, nil
+	return filePath
 }
 
 func (m *Manager) getUniqueFilePath(dir, filename string) string {
 	basePath := filepath.Join(dir, filename)
-	
+
 	// If file doesn't exist, return original path
 	if _, err := os.Stat(basePath); os.IsNotExist(err) {
 		return basePath
 	}
-	
+
 	// File exists, need to create unique name
 	ext := filepath.Ext(filename)
 	nameWithoutExt := strings.TrimSuffix(filename, ext)
-	
+
 	counter := 1
 	for {
 		// Create new filename with suffix
 		newFilename := fmt.Sprintf("%s-%d%s", nameWithoutExt, counter, ext)
 		newPath := filepath.Join(dir, newFilename)
-		
+
 		// Check if this unique name is available
 		if _, err := os.Stat(newPath); os.IsNotExist(err) {
 			log.Printf("Duplicate file detected. Saving as: %s", newFilename)
 			return newPath
 		}
-		
+
 		counter++
-		
+
 		// Safety check to prevent infinite loop
 		if counter > 1000 {
 			// If we somehow hit 1000 duplicates, use timestamp
@@ -209,49 +170,36 @@ func (m *Manager) getUniqueFilePath(dir, filename string) string {
 	}
 }
 
-func (m *Manager) moveFile(source, dest string) (string, error) {
-	// First try to rename (move) the file
-	if err := os.Rename(source, dest); err != nil {
-		// If rename fails, copy and delete
-		if err := m.copyFile(source, dest); err != nil {
-			return "", fmt.Errorf("failed to copy file: %v", err)
-		}
-		os.Remove(source)
-	}
-	
-	return dest, nil
-}
-
 func (m *Manager) copyFile(source, dest string) error {
 	sourceFile, err := os.Open(source)
 	if err != nil {
 		return err
 	}
 	defer sourceFile.Close()
-	
+
 	destFile, err := os.Create(dest)
 	if err != nil {
 		return err
 	}
 	defer destFile.Close()
-	
+
 	_, err = destFile.ReadFrom(sourceFile)
 	return err
 }
 
 func (m *Manager) StartDownload(url, quality string) string {
 	downloadID := fmt.Sprintf("dl_%d", time.Now().Unix())
-	
+
 	go m.download(downloadID, url, quality)
-	
+
 	return downloadID
 }
 
 func (m *Manager) StartMp3Convert(url string) string {
 	downloadID := fmt.Sprintf("mp3_%d", time.Now().Unix())
-	
+
 	go m.convertToMp3(downloadID, url)
-	
+
 	return downloadID
 }
 
@@ -263,31 +211,31 @@ func (m *Manager) download(id, url, quality string) {
 		Status: "starting",
 	}
 	m.mu.Unlock()
-	
+
 	// Create downloads directory
 	downloadDir := "downloads"
 	if err := os.MkdirAll(downloadDir, 0755); err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create download directory: %v", err))
 		return
 	}
-	
+
 	// Prepare yt-dlp command - use temp directory first
 	tempDir := filepath.Join(os.TempDir(), "ytdownloader")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create temp directory: %v", err))
 		return
 	}
-	
+
 	outputPath := filepath.Join(tempDir, "%(title)s.%(ext)s")
 	// Get FFmpeg path
 	ffmpegPath, err := m.getFFmpegPath()
 	if err != nil {
 		log.Printf("Warning: FFmpeg not found, audio merging may not work: %v", err)
 	}
-	
+
 	args := []string{
 		"--no-warnings",
-		"--newline", 
+		"--newline",
 		"--progress",
 		"-o", outputPath,
 		"--merge-output-format", "mp4",
@@ -316,7 +264,7 @@ func (m *Manager) download(id, url, quality string) {
 		"--sleep-interval", "2",
 		"--max-sleep-interval", "10",
 		"--geo-bypass",
-		"--geo-bypass-country", "US", 
+		"--geo-bypass-country", "US",
 		"--no-check-certificate",
 		"--force-ipv4",
 		"--verbose",
@@ -324,12 +272,12 @@ func (m *Manager) download(id, url, quality string) {
 		"--youtube-skip-dash-manifest",
 		"--hls-prefer-native",
 	}
-	
+
 	// Add FFmpeg location if available
 	if ffmpegPath != "" {
 		args = append(args, "--ffmpeg-location", ffmpegPath)
 	}
-	
+
 	// Handle format selection - quality parameter is now a format_id
 	if quality != "" && quality != "best" {
 		// Check if quality is a format_id (numeric) or resolution (ends with 'p')
@@ -338,10 +286,10 @@ func (m *Manager) download(id, url, quality string) {
 			heightLimit := strings.TrimSuffix(quality, "p")
 			formatString := fmt.Sprintf(
 				"bestvideo[height=%s]+bestaudio[ext=m4a]/"+
-				"bestvideo[height=%s]+bestaudio/"+
-				"bestvideo[height<=%s]+bestaudio[ext=m4a]/"+
-				"bestvideo[height<=%s]+bestaudio/"+
-				"best[height<=%s]",
+					"bestvideo[height=%s]+bestaudio/"+
+					"bestvideo[height<=%s]+bestaudio[ext=m4a]/"+
+					"bestvideo[height<=%s]+bestaudio/"+
+					"best[height<=%s]",
 				heightLimit, heightLimit, heightLimit, heightLimit, heightLimit)
 			args = append(args, "-f", formatString)
 			log.Printf("Using resolution-based format string for %s: %s", quality, formatString)
@@ -349,8 +297,8 @@ func (m *Manager) download(id, url, quality string) {
 			// Modern format_id approach (e.g., "137", "270")
 			formatString := fmt.Sprintf(
 				"%s+bestaudio[ext=m4a]/"+
-				"%s+bestaudio/"+
-				"%s",
+					"%s+bestaudio/"+
+					"%s",
 				quality, quality, quality)
 			args = append(args, "-f", formatString)
 			log.Printf("Using format_id-based selection for %s: %s", quality, formatString)
@@ -368,49 +316,49 @@ func (m *Manager) download(id, url, quality string) {
 		args = append(args, "-f", formatString)
 		log.Printf("Using best quality format string: %s", formatString)
 	}
-	
+
 	args = append(args, url)
-	
+
 	// Get absolute path to yt-dlp
 	ytDlpPath, err := getYtDlpPath()
 	if err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("yt-dlp not found: %v", err))
 		return
 	}
-	
+
 	cmd := exec.Command(ytDlpPath, args...)
 	log.Printf("=== DOWNLOADING WITH COMMAND ===")
-	log.Printf("Path: %s", ytDlpPath) 
+	log.Printf("Path: %s", ytDlpPath)
 	log.Printf("Full args: %v", args)
 	log.Printf("Quality requested: %s", quality)
 	log.Printf("URL: %s", url)
-	
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create stdout pipe: %v", err))
 		return
 	}
-	
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to create stderr pipe: %v", err))
 		return
 	}
-	
+
 	if err := cmd.Start(); err != nil {
 		log.Printf("Failed to start yt-dlp: %v", err)
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to start yt-dlp: %v. Make sure yt-dlp.exe exists and is executable", err))
 		return
 	}
-	
+
 	// Parse progress output - multiple regex patterns for different yt-dlp outputs
 	progressRegex1 := regexp.MustCompile(`\[download\]\s+(\d+\.?\d*)%\s+of\s+.*?\s+at\s+(\S+)\s+ETA\s+(\S+)`)
 	progressRegex2 := regexp.MustCompile(`\[download\]\s+(\d+\.?\d*)%`)
 	titleRegex := regexp.MustCompile(`\[download\] Destination: (.+)`)
-	
+
 	scanner := bufio.NewScanner(stdout)
 	var title, filename string
-	
+
 	// Log stderr in background
 	go func() {
 		stderrScanner := bufio.NewScanner(stderr)
@@ -419,14 +367,14 @@ func (m *Manager) download(id, url, quality string) {
 			log.Printf("yt-dlp stderr: %s", line)
 		}
 	}()
-	
+
 	// Set initial status
 	m.updateStatus(id, "downloading", 0, "", "", "Starting download...")
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		log.Printf("yt-dlp stdout: %s", line) // Debug logging
-		
+
 		// Extract title
 		if matches := titleRegex.FindStringSubmatch(line); len(matches) > 1 {
 			filename = filepath.Base(matches[1])
@@ -437,41 +385,41 @@ func (m *Manager) download(id, url, quality string) {
 			}
 			m.mu.Unlock()
 		}
-		
+
 		// Extract progress - try multiple patterns
 		if matches := progressRegex1.FindStringSubmatch(line); len(matches) > 3 {
 			progress := parseFloat(matches[1])
 			speed := matches[2]
 			eta := matches[3]
-			
+
 			log.Printf("Progress update: %f%%, Speed: %s, ETA: %s", progress, speed, eta)
 			m.updateStatus(id, "downloading", progress, speed, eta, "")
 		} else if matches := progressRegex2.FindStringSubmatch(line); len(matches) > 1 {
 			progress := parseFloat(matches[1])
-			
+
 			log.Printf("Simple progress update: %f%%", progress)
 			m.updateStatus(id, "downloading", progress, "", "", "")
 		}
-		
+
 		// Check for completion
 		if strings.Contains(line, "[download] 100%") || strings.Contains(line, "has already been downloaded") {
 			log.Printf("Download completed, processing...")
 			m.updateStatus(id, "processing", 100, "", "", "Processing video...")
 		}
-		
+
 		// Check for other status messages
 		if strings.Contains(line, "[ffmpeg]") {
 			m.updateStatus(id, "processing", 100, "", "", "Converting video...")
 		}
 	}
-	
+
 	if err := cmd.Wait(); err != nil {
 		log.Printf("yt-dlp command failed: %v", err)
 		if exitError, ok := err.(*exec.ExitError); ok {
 			log.Printf("yt-dlp exit code: %d", exitError.ExitCode())
 			stderrOutput := string(exitError.Stderr)
 			log.Printf("yt-dlp stderr: %s", stderrOutput)
-			
+
 			// Send more specific error message to user
 			if strings.Contains(stderrOutput, "Video unavailable") {
 				m.updateStatus(id, "error", 0, "", "", "Video is unavailable or private")
@@ -487,17 +435,17 @@ func (m *Manager) download(id, url, quality string) {
 		}
 		return
 	}
-	
+
 	// Success - download completed
 	m.updateStatus(id, "processing", 100, "", "", "Opening File Explorer...")
-	
+
 	// Find the downloaded file in temp directory
 	downloadedFile, err := m.findDownloadedFile(tempDir)
 	if err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Could not find downloaded file: %v", err))
 		return
 	}
-	
+
 	// Add resolution to filename
 	newFileName := m.addResolutionToFilename(downloadedFile, quality)
 	if newFileName != downloadedFile {
@@ -507,14 +455,14 @@ func (m *Manager) download(id, url, quality string) {
 			downloadedFile = newFileName
 		}
 	}
-	
+
 	// Open File Picker for user to choose destination and filename
 	finalPath, err := m.openFilePicker(downloadedFile)
 	if err != nil {
 		m.updateStatus(id, "error", 0, "", "", fmt.Sprintf("Failed to save file: %v", err))
 		return
 	}
-	
+
 	m.updateStatus(id, "completed", 100, "", "", fmt.Sprintf("Saved as: %s", filepath.Base(finalPath)))
 }
 
@@ -542,7 +490,7 @@ func (m *Manager) convertToMp3(id, url string) {
 	}
 
 	outputPath := filepath.Join(tempDir, "%(title)s.%(ext)s")
-	
+
 	// Get FFmpeg path
 	ffmpegPath, err := m.getFFmpegPath()
 	if err != nil {
@@ -739,20 +687,20 @@ func (m *Manager) cleanYouTubeURL(rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Handle youtu.be format
 	if strings.Contains(u.Host, "youtu.be") {
 		videoID := strings.TrimPrefix(u.Path, "/")
 		return "https://www.youtube.com/watch?v=" + videoID, nil
 	}
-	
+
 	// Handle youtube.com format
 	q := u.Query()
 	videoID := q.Get("v")
 	if videoID == "" {
 		return "", fmt.Errorf("missing v parameter in URL")
 	}
-	
+
 	return "https://www.youtube.com/watch?v=" + videoID, nil
 }
 
@@ -765,7 +713,7 @@ func (m *Manager) updateStatus(id, status string, progress float64, speed, eta, 
 		download.ETA = eta
 	}
 	m.mu.Unlock()
-	
+
 	update := models.ProgressUpdate{
 		ID:       id,
 		Progress: progress,
@@ -774,7 +722,7 @@ func (m *Manager) updateStatus(id, status string, progress float64, speed, eta, 
 		Status:   status,
 		Message:  message,
 	}
-	
+
 	log.Printf("Broadcasting update: %+v", update)
 	m.broadcast(update)
 }
@@ -782,7 +730,7 @@ func (m *Manager) updateStatus(id, status string, progress float64, speed, eta, 
 func (m *Manager) broadcast(update models.ProgressUpdate) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	log.Printf("Broadcasting to %d subscribers", len(m.subscribers))
 	for i, ch := range m.subscribers {
 		select {
@@ -855,10 +803,10 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("yt-dlp not found: %v", err)
 	}
-	
+
 	// Use yt-dlp to get video info with maximum anti-blocking measures
-	cmd := exec.Command(ytDlpPath, 
-		"-j", 
+	cmd := exec.Command(ytDlpPath,
+		"-j",
 		"--no-warnings",
 		"--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 		"--referer", "https://www.youtube.com/",
@@ -870,7 +818,7 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 		"--geo-bypass",
 		"--geo-bypass-country", "US",
 		"--extractor-retries", "10",
-		"--fragment-retries", "10", 
+		"--fragment-retries", "10",
 		"--retry-sleep", "exp=1:120",
 		"--no-check-certificate",
 		"--force-ipv4",
@@ -878,14 +826,14 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 		"--youtube-skip-dash-manifest",
 		parsedURL)
 	log.Printf("Getting video info with command: %s -j --no-warnings %s", ytDlpPath, parsedURL)
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		log.Printf("yt-dlp video info command failed: %v", err)
 		if exitError, ok := err.(*exec.ExitError); ok {
 			stderrOutput := string(exitError.Stderr)
 			log.Printf("yt-dlp stderr: %s", stderrOutput)
-			
+
 			// Handle specific error cases
 			if strings.Contains(stderrOutput, "403") || strings.Contains(stderrOutput, "Forbidden") {
 				return nil, fmt.Errorf("video is restricted or geo-blocked. YouTube blocked access to this video")
@@ -896,13 +844,13 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 			} else if strings.Contains(stderrOutput, "Video unavailable") {
 				return nil, fmt.Errorf("video is unavailable or has been removed")
 			}
-			
+
 			return nil, fmt.Errorf("failed to get video info: %s", stderrOutput)
 		}
 		return nil, fmt.Errorf("failed to get video info: %v", err)
 	}
 
-	// Parse JSON output  
+	// Parse JSON output
 	log.Printf("=== RAW VIDEO INFO OUTPUT ===")
 	log.Printf("Output length: %d bytes", len(output))
 	if len(output) > 1000 {
@@ -910,7 +858,7 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 	} else {
 		log.Printf("Full output: %s", string(output))
 	}
-	
+
 	var rawInfo map[string]interface{}
 	if err := json.Unmarshal(output, &rawInfo); err != nil {
 		return nil, fmt.Errorf("failed to parse video info: %v", err)
@@ -939,17 +887,17 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 	if formats, ok := rawInfo["formats"].([]interface{}); ok {
 		log.Printf("=== AVAILABLE FORMATS ===")
 		log.Printf("Total formats found: %d", len(formats))
-		
+
 		qualityMap := make(map[string]models.VideoFormat)
-		
+
 		for i, f := range formats {
 			if format, ok := f.(map[string]interface{}); ok {
 				// Log format details for debugging
 				if i < 10 { // Only log first 10 for brevity
-					log.Printf("Format %d: height=%v, vcodec=%v, acodec=%v, ext=%v, format_id=%v, tbr=%v", 
+					log.Printf("Format %d: height=%v, vcodec=%v, acodec=%v, ext=%v, format_id=%v, tbr=%v",
 						i, format["height"], format["vcodec"], format["acodec"], format["ext"], format["format_id"], format["tbr"])
 				}
-				
+
 				// Skip audio-only formats
 				if vcodec, ok := format["vcodec"].(string); ok && vcodec == "none" {
 					continue
@@ -1006,7 +954,7 @@ func (m *Manager) GetVideoInfo(url string) (*models.VideoInfo, error) {
 
 func (m *Manager) openFilePicker(sourceFile string) (string, error) {
 	filename := filepath.Base(sourceFile)
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		// Use PowerShell to show SaveFileDialog
@@ -1023,7 +971,7 @@ if ($saveFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 } else {
     Write-Output "CANCELLED"
 }`, filename, filepath.Ext(filename))
-		
+
 		cmd := exec.Command("powershell", "-Command", psScript)
 		output, err := cmd.Output()
 		if err != nil {
@@ -1031,33 +979,33 @@ if ($saveFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 			// Fallback to Downloads folder
 			return m.fallbackToDownloads(sourceFile)
 		}
-		
+
 		selectedPath := strings.TrimSpace(string(output))
 		if selectedPath == "CANCELLED" || selectedPath == "" {
 			// User cancelled - clean up temp file and return error
 			os.Remove(sourceFile)
 			return "", fmt.Errorf("save cancelled by user")
 		}
-		
+
 		// Copy file to selected location
 		if err := m.copyFile(sourceFile, selectedPath); err != nil {
 			return "", fmt.Errorf("failed to save file: %v", err)
 		}
-		
+
 		// Clean up temp file
 		os.Remove(sourceFile)
 		return selectedPath, nil
-		
+
 	case "darwin":
 		// macOS doesn't have a simple command-line save dialog, fallback to Downloads
 		log.Printf("File picker not implemented for macOS, using Downloads folder")
 		return m.fallbackToDownloads(sourceFile)
-		
+
 	case "linux":
 		// Linux doesn't have a universal save dialog, fallback to Downloads
 		log.Printf("File picker not implemented for Linux, using Downloads folder")
 		return m.fallbackToDownloads(sourceFile)
-		
+
 	default:
 		log.Printf("Unsupported OS: %s, using Downloads folder", runtime.GOOS)
 		return m.fallbackToDownloads(sourceFile)
@@ -1072,39 +1020,19 @@ func (m *Manager) fallbackToDownloads(sourceFile string) (string, error) {
 	}
 	downloadsDir = filepath.Join(downloadsDir, "Downloads")
 	os.MkdirAll(downloadsDir, 0755)
-	
+
 	// Get unique filename to handle duplicates
 	filename := filepath.Base(sourceFile)
 	uniquePath := m.getUniqueFilePath(downloadsDir, filename)
-	
+
 	if err := m.copyFile(sourceFile, uniquePath); err != nil {
 		return "", fmt.Errorf("failed to copy to downloads folder: %v", err)
 	}
-	
+
 	// Clean up temp file
 	os.Remove(sourceFile)
-	
-	return uniquePath, nil
-}
 
-func (m *Manager) openFileExplorer(path string) {
-	var cmd *exec.Cmd
-	
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("explorer", path)
-	case "darwin":
-		cmd = exec.Command("open", path)
-	case "linux":
-		cmd = exec.Command("xdg-open", path)
-	default:
-		log.Printf("Unsupported OS for opening file explorer: %s", runtime.GOOS)
-		return
-	}
-	
-	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to open file explorer: %v", err)
-	}
+	return uniquePath, nil
 }
 
 func parseFloat(s string) float64 {
