@@ -26,7 +26,10 @@ func ExecuteMp3Conversion(url string, progressCallback ProgressCallback) (*YtDlp
 
 	title, stdoutLines, err := executeMp3ConversionProcess(args, progressCallback)
 	if err != nil {
-		return nil, validateMp3ConversionResult(err, stdoutLines)
+		validationErr := validateMp3ConversionResult(err, stdoutLines)
+		if validationErr != nil {
+			return nil, validationErr
+		}
 	}
 
 	return locateMp3ConversionResult(tempDir, title)

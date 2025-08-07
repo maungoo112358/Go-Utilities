@@ -121,6 +121,11 @@ func (m *Manager) convertToMp3(id, url string) {
 		return
 	}
 
+	if result == nil {
+		m.updateStatus(id, consts.STATUS_ERROR, 0, "", "", "MP3 conversion failed: no result returned")
+		return
+	}
+
 	if result.Title != "" {
 		m.mu.Lock()
 		if download, ok := m.downloads[id]; ok {
