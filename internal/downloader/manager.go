@@ -68,7 +68,7 @@ func (m *Manager) download(id, url, quality string) {
 	})
 
 	if err != nil {
-		m.updateStatus(id, consts.STATUS_ERROR, 0, "", "", fmt.Sprintf(consts.ERR_DOWNLOAD_FAILED, err.Error()))
+		m.updateStatus(id, consts.STATUS_ERROR, 0, "", "", err.Error())
 		return
 	}
 

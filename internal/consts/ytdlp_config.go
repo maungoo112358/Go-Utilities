@@ -1,33 +1,39 @@
 package consts
 
-//---------- YT-DLP DOWNLOAD ARGUMENTS --------------
-var YT_DLP_DOWNLOAD_ARGS = []string{
+//---------- YT-DLP DOWNLOAD PLAYER CLIENTS --------------
+var YT_DLP_DOWNLOAD_CLIENTS = []struct {
+	Name   string
+	Args   string
+}{
+	{"ios", "youtube:player_client=ios"},
+	{"web", "youtube:player_client=web"},
+	{"mweb", "youtube:player_client=mweb"},
+	{"android", "youtube:player_client=android"},
+	{"android_testsuite", "youtube:player_client=android_testsuite"},
+	{"android_producer", "youtube:player_client=android_producer"},
+	{"android_vr", "youtube:player_client=android_vr"},
+	{"web_safari", "youtube:player_client=web_safari"},
+	{"web_embedded", "youtube:player_client=web_embedded"},
+	{"tv_embedded", "youtube:player_client=tv_embedded"},
+	{"tv", "youtube:player_client=tv"},
+	{"mediaconnect", "youtube:player_client=mediaconnect"},
+	{"ios_creator", "youtube:player_client=ios_creator"},
+	{"android_creator", "youtube:player_client=android_creator"},
+	{"web_creator", "youtube:player_client=web_creator"},
+	{"ios_music", "youtube:player_client=ios_music"},
+	{"android_music", "youtube:player_client=android_music"},
+	{"web_music", "youtube:player_client=web_music"},
+}
+
+//---------- YT-DLP DOWNLOAD BASE ARGUMENTS --------------
+var YT_DLP_DOWNLOAD_BASE_ARGS = []string{
 	"--merge-output-format", "mp4",
 	"--embed-metadata",
 	"--write-thumbnail",
-	"--user-agent", USER_AGENT_STRING,
-	"--referer", "https://www.youtube.com/",
-	"--add-header", HEADER_ACCEPT_LANGUAGE,
-	"--add-header", HEADER_ACCEPT_ENCODING,
-	"--add-header", HEADER_ACCEPT,
-	"--add-header", "Sec-Ch-Ua:\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
-	"--add-header", "Sec-Ch-Ua-Mobile:?0",
-	"--add-header", "Sec-Ch-Ua-Platform:\"Windows\"",
-	"--geo-bypass",
-	"--geo-bypass-country", "US",
-	"--extractor-retries", "10",
-	"--fragment-retries", "20",
-	"--retry-sleep", "exp=1:120",
-	"--socket-timeout", "30",
-	"--max-downloads", "1",
-	"--no-playlist",
 	"--no-warnings",
 	"--no-check-certificate",
-	"--force-ipv4",
-	"--newline",
-	"--prefer-free-formats",
-	"--youtube-skip-dash-manifest",
-	"--hls-prefer-native",
+	"--no-playlist",
+	"--max-downloads", "1",
 }
 
 //---------- YT-DLP MP3 CONVERSION ARGUMENTS --------------
@@ -36,48 +42,17 @@ var YT_DLP_MP3_ARGS = []string{
 	"--audio-format", "mp3",
 	"--audio-quality", "0",
 	"--embed-metadata",
-	"--user-agent", USER_AGENT_STRING,
-	"--referer", "https://www.youtube.com/",
-	"--add-header", HEADER_ACCEPT_LANGUAGE,
-	"--add-header", HEADER_ACCEPT_ENCODING,
-	"--add-header", "Sec-Ch-Ua:\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
-	"--add-header", "Sec-Ch-Ua-Mobile:?0",
-	"--add-header", "Sec-Ch-Ua-Platform:\"Windows\"",
-	"--geo-bypass",
-	"--geo-bypass-country", "US",
-	"--extractor-retries", "10",
-	"--fragment-retries", "20",
-	"--retry-sleep", "exp=1:120",
-	"--socket-timeout", "30",
-	"--max-downloads", "1",
-	"--no-playlist",
 	"--no-warnings",
 	"--no-check-certificate",
-	"--force-ipv4",
-	"--newline",
-	"--prefer-free-formats",
-	"--youtube-skip-dash-manifest",
-	"--hls-prefer-native",
+	"--no-playlist",
+	"--max-downloads", "1",
+	"--extractor-args", "youtube:player_client=android_testsuite",
 }
 
 //---------- YT-DLP VIDEO INFO ARGUMENTS --------------
 var YT_DLP_INFO_ARGS = []string{
 	"-j",
 	"--no-warnings",
-	"--user-agent", USER_AGENT_STRING,
-	"--referer", "https://www.youtube.com/",
-	"--add-header", HEADER_ACCEPT_LANGUAGE,
-	"--add-header", HEADER_ACCEPT_ENCODING,
-	"--add-header", "Sec-Ch-Ua:\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
-	"--add-header", "Sec-Ch-Ua-Mobile:?0",
-	"--add-header", "Sec-Ch-Ua-Platform:\"Windows\"",
-	"--geo-bypass",
-	"--geo-bypass-country", "US",
-	"--extractor-retries", "10",
-	"--fragment-retries", "10",
-	"--retry-sleep", "exp=1:120",
 	"--no-check-certificate",
-	"--force-ipv4",
-	"--prefer-free-formats",
-	"--youtube-skip-dash-manifest",
+	"--extractor-args", "youtube:player_client=android_testsuite",
 }
