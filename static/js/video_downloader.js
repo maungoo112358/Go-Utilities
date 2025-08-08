@@ -21,27 +21,37 @@ export function initVideoDownloader() {
     const resolutionSection = document.getElementById(ELEMENT_IDS.RESOLUTION_SECTION);
     const confirmDownloadBtn = document.getElementById(ELEMENT_IDS.CONFIRM_DOWNLOAD_BTN);
     
-    let debounceTimer;
-    urlInput.addEventListener('input', (e) => {
-        clearTimeout(debounceTimer);
-        const url = e.target.value.trim();
-        
-        if (url === '') {
-            hideResolutionSection();
-            currentVideoInfo = null; 
-            return;
-        }
-        
-        debounceTimer = setTimeout(() => {
-            if (isValidYouTubeURL(url)) {
-                fetchVideoInfo(url);
-            } else {
-                hideResolutionSection();
-            }
-        }, TIMEOUTS.DEBOUNCE_INPUT);
+    console.log('Video downloader elements:', {
+        urlInput: !!urlInput,
+        resolutionSection: !!resolutionSection,
+        confirmDownloadBtn: !!confirmDownloadBtn
     });
     
-    confirmDownloadBtn.addEventListener('click', handleConfirmDownload);
+    let debounceTimer;
+    if (urlInput) {
+        urlInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const url = e.target.value.trim();
+            
+            if (url === '') {
+                hideResolutionSection();
+                currentVideoInfo = null; 
+                return;
+            }
+            
+            debounceTimer = setTimeout(() => {
+                if (isValidYouTubeURL(url)) {
+                    fetchVideoInfo(url);
+                } else {
+                    hideResolutionSection();
+                }
+            }, TIMEOUTS.DEBOUNCE_INPUT);
+        });
+    }
+    
+    if (confirmDownloadBtn) {
+        confirmDownloadBtn.addEventListener('click', handleConfirmDownload);
+    }
     
     document.addEventListener('click', (e) => {
         if (e.target.id === ELEMENT_IDS.CANCEL_BTN) {

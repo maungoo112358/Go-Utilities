@@ -27,7 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initWebSocket();
     initMenuSystem();
     initVideoDownloader();
+    console.log('About to call initAudioConverter...');
     initAudioConverter();
+    console.log('initAudioConverter called');
     initJsonFormatter();
     
     function initMenuSystem() {

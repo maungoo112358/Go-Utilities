@@ -16,8 +16,16 @@ import {
 const API_BASE = API_ENDPOINTS.BASE;
 
 export function initAudioConverter() {
+    console.log('initAudioConverter called');
     const mp3UrlInput = document.getElementById(ELEMENT_IDS.MP3_URL_INPUT);
     const convertMp3Btn = document.getElementById(ELEMENT_IDS.CONVERT_MP3_BTN);
+    
+    console.log('MP3 elements found:', {
+        mp3UrlInput: !!mp3UrlInput,
+        convertMp3Btn: !!convertMp3Btn,
+        mp3UrlInputId: mp3UrlInput?.id,
+        convertMp3BtnId: convertMp3Btn?.id
+    });
     
     if (!mp3UrlInput || !convertMp3Btn) {
         console.error(LOG_MESSAGES.MP3_CONVERTER_ELEMENTS_NOT_FOUND);
@@ -25,11 +33,14 @@ export function initAudioConverter() {
     }
     
     convertMp3Btn.addEventListener('click', function(e) {
+        console.log('MP3 button clicked! Event:', e);
         console.log(LOG_MESSAGES.MP3_BUTTON_CLICKED_DIRECT);
         e.preventDefault();
         e.stopPropagation();
         handleMp3Convert();
     });
+    
+    console.log('MP3 button event listener added');
     
     mp3UrlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && mp3UrlInput.value.trim()) {

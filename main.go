@@ -59,8 +59,6 @@ func openBrowser(url string) {
 		log.Printf(consts.LOG_OPENING_BROWSER, url)
 		detectDefaultBrowser()
 	}
-
-	requestCookiePermission()
 }
 
 func requestCookiePermission() {
